@@ -1,0 +1,16 @@
+@prefix lv2:  <http://lv2plug.in/ns/lv2core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix pset: <http://lv2plug.in/ns/ext/presets#> .
+
+<urn:ardour:a-filter>
+    a lv2:Plugin ;
+    lv2:binary <a-filter.so> ;
+    rdfs:seeAlso <a-filter.ttl> .
+
+<urn:ardour:a-filter#preset001>
+    a pset:Preset ;
+    lv2:appliesTo <urn:ardour:a-filter> ;
+    rdfs:label "Zero" ;
+    rdfs:seeAlso <presets.ttl> .
+
+

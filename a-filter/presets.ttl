@@ -1,0 +1,14 @@
+@prefix lv2:   <http://lv2plug.in/ns/lv2core#> .
+@prefix pset:  <http://lv2plug.in/ns/ext/presets#> .
+
+<urn:ardour:a-filter#preset001>
+    lv2:port [
+        lv2:symbol "f0" ;
+        pset:value 160.000000 ;
+    ] ,
+    [
+        lv2:symbol "bw" ;
+        pset:value 2.000000 ;
+    ] .
+
+
