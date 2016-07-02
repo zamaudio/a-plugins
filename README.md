@@ -20,7 +20,7 @@ Plugin	|	Algorithm
 ---     |       ---
 comp	|	ZamComp
 filter	|	Simper highpass
-delay	|	TODO
+delay	|	Based on ZamDelay
 reverb	|	TODO
 eq	|	TODO
 
