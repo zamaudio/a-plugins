@@ -355,8 +355,8 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 	
 	recalc = 0;
-	if (*(adelay->sync) > 0.5f) {
-		*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (adelay->bpm * powf(2., *(adelay->divisor) - 1.));
+	if (*(adelay->sync) > 0.5f && adelay->bpmvalid) {
+		*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (adelay->bpm * *(adelay->divisor));
 	} else {
 		*(adelay->delaytime) = *(adelay->time);
 	}
