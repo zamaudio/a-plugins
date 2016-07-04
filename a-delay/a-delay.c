@@ -355,33 +355,32 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 	
 	recalc = 0;
-	if (*(adelay->sync) > 0.5f && adelay->bpmvalid) {
-		*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (adelay->bpm * *(adelay->divisor));
-	} else {
-		*(adelay->delaytime) = *(adelay->time);
-	}
-	delaysamples = (int)(*(adelay->delaytime) * srate) / 1000;
-
-	if (*(adelay->lpf) != adelay->lpfold) {
-		lpfRbj(adelay, *(adelay->lpf), srate);
-	}
-	if (*(adelay->divisor) != adelay->divisorold) {
-		recalc = 1;
-	}
-	if (*(adelay->gain) != adelay->gainold) {
-		recalc = 1;
-	}
 	if (*(adelay->inv) != adelay->invertold) {
-		recalc = 1;
-	}
-	if (*(adelay->time) != adelay->timeold) {
 		recalc = 1;
 	}
 	if (*(adelay->sync) != adelay->syncold) {
 		recalc = 1;
 	}
+	if (*(adelay->time) != adelay->timeold) {
+		recalc = 1;
+	}
+	if (*(adelay->divisor) != adelay->divisorold) {
+		recalc = 1;
+	}
+	if (*(adelay->lpf) != adelay->lpfold) {
+		lpfRbj(adelay, *(adelay->lpf), srate);
+	}
+	if (*(adelay->gain) != adelay->gainold) {
+		recalc = 1;
+	}
 	
 	if (recalc) {
+		if (*(adelay->sync) > 0.5f && adelay->bpmvalid) {
+			*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (adelay->bpm * *(adelay->divisor));
+		} else {
+			*(adelay->delaytime) = *(adelay->time);
+		}
+		delaysamples = (int)(*(adelay->delaytime) * srate) / 1000;
 		adelay->tap[adelay->next] = delaysamples;
 	}
 
