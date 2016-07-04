@@ -51,11 +51,14 @@ typedef enum {
 
 typedef struct {
 	LV2_URID atom_Blank;
+	LV2_URID atom_Object;
 	LV2_URID atom_Sequence;
-	LV2_URID atom_Float;
 	LV2_URID atom_Long;
-	LV2_URID time_beatsPerMinute;
+	LV2_URID atom_Int;
+	LV2_URID atom_Float;
+	LV2_URID atom_Double;
 	LV2_URID time_beatUnit;
+	LV2_URID time_beatsPerMinute;
 	LV2_URID time_Position;
 } DelayURIs;
 
@@ -102,7 +105,24 @@ typedef struct {
 	float state[4];
 
 	DelayURIs uris;
+	LV2_Atom_Forge forge;
+	LV2_URID_Map* map;
 } ADelay;
+
+static inline void
+map_uris(LV2_URID_Map* map, DelayURIs* uris)
+{
+	uris->atom_Blank          = map->map(map->handle, LV2_ATOM__Blank);
+	uris->atom_Object         = map->map(map->handle, LV2_ATOM__Object);
+	uris->atom_Sequence       = map->map(map->handle, LV2_ATOM__Sequence);
+	uris->atom_Long           = map->map(map->handle, LV2_ATOM__Long);
+	uris->atom_Int            = map->map(map->handle, LV2_ATOM__Int);
+	uris->atom_Float          = map->map(map->handle, LV2_ATOM__Float);
+	uris->atom_Double         = map->map(map->handle, LV2_ATOM__Double);
+	uris->time_beatUnit       = map->map(map->handle, LV2_TIME__beatUnit);
+	uris->time_beatsPerMinute = map->map(map->handle, LV2_TIME__beatsPerMinute);
+	uris->time_Position       = map->map(map->handle, LV2_TIME__Position);
+}
 
 static LV2_Handle
 instantiate(const LV2_Descriptor* descriptor,
@@ -110,9 +130,26 @@ instantiate(const LV2_Descriptor* descriptor,
             const char* bundle_path,
             const LV2_Feature* const* features)
 {
-	ADelay* adelay = (ADelay*)malloc(sizeof(ADelay));
-	adelay->srate = rate;
+	int i;
+	ADelay* adelay = (ADelay*)calloc(1, sizeof(ADelay));
+	if (!adelay) return NULL;
 
+	for (i = 0; features[i]; ++i) {
+		if (!strcmp(features[i]->URI, LV2_URID__map)) {
+			adelay->map = (LV2_URID_Map*)features[i]->data;
+		}
+	}
+
+	if (!adelay->map) {
+		fprintf(stderr, "a-delay.lv2 error: Host does not support urid:map\n");
+		free(adelay);
+		return NULL;
+	}
+
+	map_uris(adelay->map, &adelay->uris);
+	lv2_atom_forge_init(&adelay->forge, adelay->map);
+
+	adelay->srate = rate;
 	adelay->bpmvalid = 0;
 
 	return (LV2_Handle)adelay;
@@ -265,25 +302,31 @@ update_bpm(ADelay* self, const LV2_Atom_Object* obj)
 {
 	const DelayURIs* uris = &self->uris;
 
-	// Received new transport position/speed
+	// Received new transport bpm/beatunit
 	LV2_Atom *beatunit = NULL, *bpm = NULL;
 	lv2_atom_object_get(obj,
 	                    uris->time_beatUnit, &beatunit,
 	                    uris->time_beatsPerMinute, &bpm,
 	                    NULL);
+	// Tempo changed, update BPM
 	if (bpm && bpm->type == uris->atom_Float) {
-		// Tempo changed, update BPM
 		self->bpm = ((LV2_Atom_Float*)bpm)->body;
 	}
+	// Time signature changed, update beatunit
+	if (beatunit && beatunit->type == uris->atom_Int) {
+		int b = ((LV2_Atom_Int*)beatunit)->body;
+		self->beatunit = (float)b;
+	}
+	if (beatunit && beatunit->type == uris->atom_Double) {
+		double b = ((LV2_Atom_Double*)beatunit)->body;
+		self->beatunit = (float)b;
+	}
 	if (beatunit && beatunit->type == uris->atom_Float) {
-		// Time signature changed, update beatunit (float)
 		self->beatunit = ((LV2_Atom_Float*)beatunit)->body;
-		self->beatuniti = (int)self->beatunit;
 	}
 	if (beatunit && beatunit->type == uris->atom_Long) {
-		// Time signature changed, update beatunit (int)
-		self->beatuniti = ((LV2_Atom_Long*)beatunit)->body;
-		self->beatunit = (float)self->beatuniti;
+		long int b = ((LV2_Atom_Long*)beatunit)->body;
+		self->beatunit = (float)b;
 	}
 	self->bpmvalid = 1;
 }
@@ -300,7 +343,6 @@ run(LV2_Handle instance, uint32_t n_samples)
 
 	uint32_t i;
 	float in;
-	float bpm = adelay->bpm;
 	int delaysamples;
 	unsigned int tmp;
 	float inv;
@@ -313,14 +355,13 @@ run(LV2_Handle instance, uint32_t n_samples)
 	}
 	
 	recalc = 0;
-	*(adelay->delaytime) = *(adelay->time);
-	if (adelay->bpmvalid) {
-		if (*(adelay->sync) > 0.5f) {
-			*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (bpm * powf(2., *(adelay->divisor) - 1.));
-		}
+	if (*(adelay->sync) > 0.5f) {
+		*(adelay->delaytime) = adelay->beatunit * 1000.f * 60.f / (adelay->bpm * powf(2., *(adelay->divisor) - 1.));
+	} else {
+		*(adelay->delaytime) = *(adelay->time);
 	}
 	delaysamples = (int)(*(adelay->delaytime) * srate) / 1000;
-	
+
 	if (*(adelay->lpf) != adelay->lpfold) {
 		lpfRbj(adelay, *(adelay->lpf), srate);
 	}
@@ -383,7 +424,7 @@ run(LV2_Handle instance, uint32_t n_samples)
 	if (adelay->atombpm) {
 		LV2_Atom_Event* ev = lv2_atom_sequence_begin(&(adelay->atombpm)->body);
 		while(!lv2_atom_sequence_is_end(&(adelay->atombpm)->body, (adelay->atombpm)->atom.size, ev)) {
-			if (ev->body.type == adelay->uris.atom_Blank) {
+			if (ev->body.type == adelay->uris.atom_Blank || ev->body.type == adelay->uris.atom_Object) {
 				const LV2_Atom_Object* obj = (LV2_Atom_Object*)&ev->body;
 				if (obj->body.otype == adelay->uris.time_Position) {
 					update_bpm(adelay, obj);
@@ -392,7 +433,6 @@ run(LV2_Handle instance, uint32_t n_samples)
 			ev = lv2_atom_sequence_next(ev);
 		}
 	}
-	//printf("bpmvalid=%d\n", adelay->bpmvalid);
 }
 
 static void
