@@ -82,13 +82,13 @@
 	lv2:portProperty lv2:enumeration ;
 	lv2:scalePoint [ rdfs:label "a - Whole note"; rdf:value 1.0 ] ;
 	lv2:scalePoint [ rdfs:label "b - Half note"; rdf:value 2.0 ] ;
-	lv2:scalePoint [ rdfs:label "c - Quarter note"; rdf:value 4.0 ] ;
-	lv2:scalePoint [ rdfs:label "d - Eighth note"; rdf:value 8.0 ] ;
-	lv2:scalePoint [ rdfs:label "e - 16th note"; rdf:value 16.0 ] ;
+	lv2:scalePoint [ rdfs:label "c - ♩"; rdf:value 4.0 ] ;
+	lv2:scalePoint [ rdfs:label "d - ♪"; rdf:value 8.0 ] ;
+	lv2:scalePoint [ rdfs:label "e - ♬"; rdf:value 16.0 ] ;
 	lv2:scalePoint [ rdfs:label "f - 32nd note"; rdf:value 32.0 ] ;
-	lv2:scalePoint [ rdfs:label "g - Quarter note (Triplet)"; rdf:value 6.0 ] ;
-	lv2:scalePoint [ rdfs:label "h - Eighth note (Triplet)"; rdf:value 12.0 ] ;
-	lv2:scalePoint [ rdfs:label "i - 16th note (Triplet)"; rdf:value 24.0 ] ;
+	lv2:scalePoint [ rdfs:label "g - ♩ (Triplet)"; rdf:value 6.0 ] ;
+	lv2:scalePoint [ rdfs:label "h - ♪ (Triplet)"; rdf:value 12.0 ] ;
+	lv2:scalePoint [ rdfs:label "i - ♬ (Triplet)"; rdf:value 24.0 ] ;
 	lv2:scalePoint [ rdfs:label "j - 32nd note (Triplet)"; rdf:value 48.0 ] ;
     ] ,
     [
