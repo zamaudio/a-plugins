@@ -24,7 +24,7 @@ typedef enum {
 	AFILTER_OUTPUT,
 
 	AFILTER_CUTOFF,
-	AFILTER_BANDWIDTH,
+	AFILTER_SLOPE,
 } PortIndex;
 
 struct linear_svf {
@@ -47,10 +47,9 @@ typedef struct {
 	float* output;
 
 	float* f0;
-	float* bw;
+	float* slope;
 
 	float oldf0;
-	float oldbw;
 	float srate;
 
 	struct linear_svf highpass;
@@ -66,7 +65,7 @@ instantiate(const LV2_Descriptor* descriptor,
 	afilter->srate = rate;
 
 	afilter->oldf0 = 0.f;
-	afilter->oldbw = 0.f;
+	
 	linear_svf_reset(&afilter->highpass);
 
 	return (LV2_Handle)afilter;
@@ -83,8 +82,8 @@ connect_port(LV2_Handle instance,
 	case AFILTER_CUTOFF:
 		afilter->f0 = (float*)data;
 		break;
-	case AFILTER_BANDWIDTH:
-		afilter->bw = (float*)data;
+	case AFILTER_SLOPE:
+		afilter->slope = (float*)data;
 		break;
 	case AFILTER_INPUT:
 		afilter->input = (float*)data;
@@ -122,17 +121,15 @@ activate(LV2_Handle instance)
 	linear_svf_reset(&afilter->highpass);
 
 	*(afilter->f0) = 160.0f;
-	*(afilter->bw) = 2.0f;
+	*(afilter->slope) = 12.0f;
 }
 
 /*
  * highpass SVF
  * http://www.cytomic.com/files/dsp/SvfLinearTrapOptimised2.pdf
  */
-static void linear_svf_set_hp(struct linear_svf *self, float sample_rate, float cutoff, float bandwidth)
+static void linear_svf_set_hp(struct linear_svf *self, float sample_rate, float cutoff, float resonance)
 {
-	float resonance = powf(2.0, 1.0/bandwidth)/(powf(2.0, bandwidth) - 1.0);
-	
 	self->g = tanf(M_PI * (cutoff / sample_rate));
 	self->k = 1.f / resonance;
 
@@ -171,33 +168,22 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float* const output = afilter->output;
 
 	float srate = afilter->srate;
-	int recalc = 0;
+	int steeper = (*(afilter->slope) > 18.f);
 	float in0, out;
 	uint32_t i;
 
-	if (*(afilter->f0) != afilter->oldf0) {
-		recalc = 1;
-	}
-	if (*(afilter->bw) != afilter->oldbw) {
-		recalc = 1;
-	}
-
-	if (recalc)
-		linear_svf_set_hp(&afilter->highpass, srate, *(afilter->f0), *(afilter->bw));
+	if (*(afilter->f0) != afilter->oldf0)
+		linear_svf_set_hp(&afilter->highpass, srate, *(afilter->f0), 0.7071068);
 
 	for (i = 0; i < n_samples; i++) {
 		in0 = input[i];
 		out = run_linear_svf(&afilter->highpass, 0, in0);
+		if (steeper)
+			out = run_linear_svf(&afilter->highpass, 1, out);
 		output[i] = out;
 	}
 
 	afilter->oldf0 = *(afilter->f0);
-	afilter->oldbw = *(afilter->bw);
-}
-
-static void
-deactivate(LV2_Handle instance)
-{
 }
 
 static void
@@ -218,7 +204,7 @@ static const LV2_Descriptor descriptor = {
 	connect_port,
 	activate,
 	run,
-	deactivate,
+	NULL,
 	cleanup,
 	extension_data
 };
