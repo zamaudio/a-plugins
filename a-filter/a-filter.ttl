@@ -47,12 +47,14 @@
         lv2:symbol "slope" ;
         lv2:default 12 ;
         lv2:minimum 12 ;
-        lv2:maximum 24 ;
+        lv2:maximum 48 ;
         lv2:portProperty <http://lv2plug.in/ns/ext/port-props#hasStrictBounds> ;
         lv2:portProperty lv2:enumeration ;
         lv2:portProperty lv2:integer ;
         lv2:scalePoint [ rdfs:label "12 dB/oct"; rdf:value 12 ] ;
         lv2:scalePoint [ rdfs:label "24 dB/oct"; rdf:value 24 ] ;
+        lv2:scalePoint [ rdfs:label "36 dB/oct"; rdf:value 36 ] ;
+        lv2:scalePoint [ rdfs:label "48 dB/oct"; rdf:value 48 ] ;
     ] ;
 
     rdfs:comment """

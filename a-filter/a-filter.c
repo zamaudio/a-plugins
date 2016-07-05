@@ -28,18 +28,19 @@ typedef enum {
 } PortIndex;
 
 struct linear_svf {
-	float g, k;
-	float a[3];
-	float m[3];
-	float s[2][2];
+	double g, k;
+	double a[3];
+	double m[3];
+	double s[4][2];
 };
 
 static void linear_svf_reset(struct linear_svf *self)
 {
-	self->s[0][0]     =
-		self->s[0][1] =
-		self->s[1][0] =
-		self->s[1][1] = 0.f;
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		self->s[i][0] = self->s[i][1] = 0.0;
+	}
 }
 
 typedef struct {
@@ -65,7 +66,7 @@ instantiate(const LV2_Descriptor* descriptor,
 	afilter->srate = rate;
 
 	afilter->oldf0 = 0.f;
-	
+
 	linear_svf_reset(&afilter->highpass);
 
 	return (LV2_Handle)afilter;
@@ -94,25 +95,6 @@ connect_port(LV2_Handle instance,
 	}
 }
 
-// Force already-denormal float value to zero
-static inline float
-sanitize_denormal(float value) {
-	if (!isnormal(value)) {
-		value = 0.f;
-	}
-	return value;
-}
-
-static inline float
-from_dB(float gdb) {
-	return (exp(gdb/20.f*log(10.f)));
-}
-
-static inline float
-to_dB(float g) {
-	return (20.f*log10(g));
-}
-
 static void
 activate(LV2_Handle instance)
 {
@@ -130,33 +112,40 @@ activate(LV2_Handle instance)
  */
 static void linear_svf_set_hp(struct linear_svf *self, float sample_rate, float cutoff, float resonance)
 {
-	self->g = tanf(M_PI * (cutoff / sample_rate));
-	self->k = 1.f / resonance;
+	double f0 = (double)cutoff;
+	double q = (double)resonance;
+	double sr = (double)sample_rate;
 
-	self->a[0] = 1.f / (1.f + self->g * (self->g + self->k));
+	self->g = tan(M_PI * (f0 / sr));
+	self->k = 1.f / q;
+
+	self->a[0] = 1.0 / (1.0 + self->g * (self->g + self->k));
 	self->a[1] = self->g * self->a[0];
 	self->a[2] = self->g * self->a[1];
 
-	self->m[0] = 1.f;
+	self->m[0] = 1.0;
 	self->m[1] = -self->k;
-	self->m[2] = -1.f;
+	self->m[2] = -1.0;
 }
 
 static float run_linear_svf(struct linear_svf *self, int c, float in)
 {
-	float v[3];
+	double v[3];
+	double din = (double)in;
+	double out;
 
-	v[2] = in - self->s[c][1];
+	v[2] = din - self->s[c][1];
 	v[0] = (self->a[0] * self->s[c][0]) + (self->a[1] * v[2]);
 	v[1] = self->s[c][1] + (self->a[1] * self->s[c][0]) + (self->a[2] * v[2]);
 
-	self->s[c][0] = (2.f * v[0]) - self->s[c][0];
-	self->s[c][1] = (2.f * v[1]) - self->s[c][1];
+	self->s[c][0] = (2.0 * v[0]) - self->s[c][0];
+	self->s[c][1] = (2.0 * v[1]) - self->s[c][1];
 
-	return
-		(self->m[0] * in)
+	out = (self->m[0] * din)
 		+ (self->m[1] * v[0])
 		+ (self->m[2] * v[1]);
+
+	return (float)out;
 }
 
 static void
@@ -168,18 +157,19 @@ run(LV2_Handle instance, uint32_t n_samples)
 	float* const output = afilter->output;
 
 	float srate = afilter->srate;
-	int steeper = (*(afilter->slope) > 18.f);
+	int stacked = (int)(*(afilter->slope) / 12.f);
 	float in0, out;
-	uint32_t i;
+	uint32_t i, j;
 
 	if (*(afilter->f0) != afilter->oldf0)
 		linear_svf_set_hp(&afilter->highpass, srate, *(afilter->f0), 0.7071068);
 
 	for (i = 0; i < n_samples; i++) {
 		in0 = input[i];
-		out = run_linear_svf(&afilter->highpass, 0, in0);
-		if (steeper)
-			out = run_linear_svf(&afilter->highpass, 1, out);
+		out = in0;
+		for (j = 0; j < stacked; j++) {
+			out = run_linear_svf(&afilter->highpass, j, out);
+		}
 		output[i] = out;
 	}
 
