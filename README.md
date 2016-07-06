@@ -22,7 +22,7 @@ comp	|	ZamComp
 filter	|	Simper highpass
 delay	|	Based on ZamDelay
 reverb	|	TODO
-eq	|	TODO
+eq	|	Simper filters
 
 Suggestions
 ===========
